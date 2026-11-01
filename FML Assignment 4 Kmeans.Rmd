@@ -1,0 +1,139 @@
+---
+title: "FML Assignment 4"
+author: "Peter Tobola"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+library(tidyverse)
+library(caret)
+library(pROC)
+library(ggplot2)
+library(corrplot)
+library(class)
+library(cluster)
+
+
+library(dplyr)
+library(factoextra)
+
+```
+
+## load pharmaceuticals file
+
+```{r}
+PH <- read.csv("C:/Users/ptobo/Desktop/Kent State/3 Fundamentals of Machine Learning BA-64060/Assignments/Assignment 4/Pharmaceuticals.csv")
+
+PH
+
+```
+
+## adjusting column numbers to symbol and only use columns 3 through 11
+
+
+```{r}
+
+
+rownames(PH) <- PH$Symbol
+
+
+num_vars <- PH[, 3:11]
+
+num_vars
+```
+
+## simplifying scale process relative to above or below 0
+
+
+```{r}
+
+scaled_vars <- scale(num_vars)
+
+```
+
+## Euclidean Distance_dendrogram reflect measured data points relationships; Claude assist for clarity but inconclusive
+
+```{r}
+
+dist_matrix <- dist(scaled_vars, method = "euclidean")
+hc_ward <- hclust(dist_matrix, method = "ward.D2")
+
+plot(hc_ward, main = "Dendrogram of Pharmaceutical Firms (Ward's Method)",
+     xlab = "Firm Symbol", ylab = "Euclidean Distance", sub = "", lwd = 2)
+rect.hclust(hc_ward, k = 5, border = 2:6)
+
+
+
+```
+
+## set seed to 30 and K-means cluster to 5 groups
+
+```{r}
+PH$Cluster <- cutree(hc_ward, k = 5)
+
+set.seed(30)
+kmeans_res <- kmeans(scaled_vars, centers = 5, nstart = 10)
+PH$KMeans_Cluster <- kmeans_res$cluster
+
+
+```
+
+## Names of 5 clusters
+
+```{r}
+cluster_names <- c("1" = "Stable",
+                   "2" = "High costs",
+                   "3" = "Med Risk",
+                   "4" = "Slow growth",
+                   "5" = "Storng Return")
+PH$Cluster_Name <- cluster_names[as.character(PH$Cluster)]
+
+split(PH$Symbol, PH$Cluster_Name) 
+
+```
+
+
+
+## company comparison by average of aggregate variables
+
+```{r}
+cluster_profile <- aggregate(num_vars, by = list(Cluster = PH$Cluster), FUN = mean)
+cluster_counts <- aggregate(Symbol ~ Cluster, data = PH, FUN = length)
+colnames(cluster_counts)[2] <- "Count"
+
+final_profile <- merge(cluster_counts, cluster_profile, by = "Cluster")
+print("=== CLUSTER PROFILES (MEANS) ===")
+print(round(final_profile, 2))
+
+
+
+```
+
+
+## reflect recommendation, preferred and differences; clusters 1-stable, slow growth 5.38%, hig profit 20.51%, 2-high costs low return ROA, 3-med risk, fast growth 23.60% and good profit 14.13%  4-slow and stead, growth 6.38% AND 7.5% profit 5-strong, fast growth 18.53%, hig profit 19.58%
+
+```{r}
+
+print(table(PH$Cluster, PH$Median_Recommendation))
+
+print(table(PH$Cluster, PH$Location))
+
+print(table(PH$Cluster, PH$Exchange))
+
+
+
+```
+
+## patterns suggest cluster 5 'strong return' and cluster 3 'med risk' to have the most equitable investment opportunities.
+
